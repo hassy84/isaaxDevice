@@ -1,0 +1,14 @@
+{
+  "name": "my-1st-isaax-diy",
+  "version": "",
+  "description": "python - raspberry-pi",
+  "main": "Xshell_hack_main.py",
+  "author": "",
+  "license": "",
+  "language":"python",
+  "scripts": {
+     "start": "python -u homban/Xshell_hack_main.py"
+    },
+   "dependency": null
+}
+
