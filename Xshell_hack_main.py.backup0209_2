@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+
+from entryboard import *
+import time
+import RPi.GPIO as GPIO
+import ipget
+from time import sleep
+import paho.mqtt.client as mqtt
+
+leds = [LED1, LED2, LED3, LED4]
+HOST = 'yutakaneji.com'
+PORT = 1883
+KEEP_ALIVE = 60
+TOPIC = 'test'
+PUBLISH_NUMBER = 2
+SLEEP_TIME = 2
+IS_RUNNING = True
+
+CLIENT = mqtt.Client(protocol=mqtt.MQTTv311)
+
+
+def publish_many_times(client, topic='topic/default', message='default', number=1, time=1, print_flag=False):
+    global CLIENT
+    for i in range(number):
+        client.publish(topic, message)
+        if print_flag == True:
+            print (topic + ' ' + message)
+        sleep(time)
+
+
+#    client.disconnect()
+
+
+# def test_led_buzzer():
+#     GPIO.setmode(GPIO.BCM)
+#     GPIO.setup(leds, GPIO.OUT, initial=GPIO.LOW)
+#     GPIO.setup(BUZZER, GPIO.OUT)
+#     bz = GPIO.PWM(BUZZER, 1000)
+#     bz.start(50)
+#     for i in range(2):
+#         for l in leds:
+#             GPIO.output(l, 1)
+#             time.sleep(0.2)
+#             GPIO.output(l, 0)
+#     bz.stop()
+#     GPIO.cleanup(BUZZER)
+#     GPIO.cleanup(leds)
+
+
+def start():
+    global CLIENT
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(leds, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(BUZZER, GPIO.OUT)
+    bz = GPIO.PWM(BUZZER, 1000)
+    bz.start(50)
+    time.sleep(1)
+    bz.stop()
+    
+    CLIENT.on_connect = on_connect
+    CLIENT.on_message = on_message
+    CLIENT.connect(HOST, port=PORT, keepalive=KEEP_ALIVE)
+    ip = ipget.ipget()
+    # ipaddress = ip.ipaddr("wlan0") #つながってないとエラーになる
+    ipaddress = ip.ipaddr("eth0")
+    print ipaddress
+    publish_many_times(CLIENT, TOPIC, ipaddress, PUBLISH_NUMBER, SLEEP_TIME)
+    
+    # CLIENT.on_connect = on_connect
+    # CLIENT.on_message = on_message
+    # CLIENT.connect(HOST, port=PORT, keepalive=KEEP_ALIVE)
+    return
+
+
+def on_connect(client, userdata, flags, respons_code):
+    print('status {0}'.format(respons_code))
+    client.subscribe(TOPIC)
+
+
+def on_message(client, userdata, message):
+    global IS_RUNNING
+    IS_RUNNING = False
+    print(message.topic + ' ' + str(message.payload))
+
+
+def loop():
+    global CLIENT
+    print "loping, press ctr-C to stop"
+    for l in leds:
+        GPIO.output(l, 1)
+        time.sleep(0.5)
+        GPIO.output(l, 0)
+    return
+
+
+def on_application_quit():
+    global CLIENT
+    GPIO.cleanup(BUZZER)
+    GPIO.cleanup(leds)
+    CLIENT.disconnect()
+    print "***** Application stopped *****"
+    return
+
+
+if __name__ == '__main__':
+    start()
+    try:
+        while CLIENT.loop() == 0 and IS_RUNNING:
+            loop()
+        on_application_quit()
+    except KeyboardInterrupt:
+        on_application_quit()
